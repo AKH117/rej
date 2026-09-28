@@ -50,6 +50,9 @@ function telegramRequest(method, data) {
   });
 }
 
+const userStates = new Map();
+const userNames = new Map();
+
 async function handleUpdate(update) {
   if (update.message) {
     const msg = update.message;
@@ -59,12 +62,95 @@ async function handleUpdate(update) {
 
     console.log(`📩 رسالة من ${fromName} (${chatId}): ${text}`);
 
-    if (text.startsWith("/start")) {
-      const welcome = `⚔️ *مرحباً بك في مَنظُومَة [رِجَالٌ صَدَقُوا] يا ${fromName}!*
+    // If awaiting name input
+    if (userStates.get(chatId) === "awaiting_name" && !text.startsWith("/")) {
+      const chosenName = text.trim().slice(0, 35);
+      userNames.set(chatId, chosenName);
+      userStates.delete(chatId);
+
+      const confirmed = `🏆 *الله أكبر! تم اعتماد لقبك: [${chosenName}] بنجاح في سجل الفرسان.* ⚔️
 
 «مِّنَ الْمُؤْمِنِينَ رِجَالٌ صَدَقُوا مَا عَاهَدُوا اللَّهَ عَلَيْهِ»
 
-هذا البوت هو حصنك وسلاحك لتحطيم قيد الإباحية والعادة الخبيثة، واستعادة عزة الرجولة ونور الإيمان وصفاء العقل.
+اضغط على الزر أدناه لدخول تطبيق درع العفة ومشاهدة اسمك في لوحة البطولة:`;
+
+      await telegramRequest("sendMessage", {
+        chat_id: chatId,
+        text: confirmed,
+        parse_mode: "Markdown",
+        reply_markup: {
+          inline_keyboard: [
+            [
+              {
+                text: "⚔️ فتح تطبيق درع العفة (Mini App)",
+                web_app: { url: APP_URL },
+              },
+            ],
+            [
+              { text: "🛡️ تسجيل الثبات اليومي", callback_data: "checkin_today" },
+              { text: "🏆 لوحة الأبطال", callback_data: "view_leaderboard" },
+            ],
+            [
+              { text: "🆘 زر الطوارئ والاستغاثة", callback_data: "trigger_sos" },
+              { text: "📊 عدادي ورتبتي", callback_data: "view_my_streak" },
+            ],
+          ],
+        },
+      });
+      return;
+    }
+
+    // Command /name or /setname
+    if (text.startsWith("/name") || text.startsWith("/setname")) {
+      const parts = text.split(" ");
+      if (parts.length > 1) {
+        const newName = parts.slice(1).join(" ").trim().slice(0, 35);
+        userNames.set(chatId, newName);
+        userStates.delete(chatId);
+        await telegramRequest("sendMessage", {
+          chat_id: chatId,
+          text: `✅ *تم تحديث لقبك بنجاح إلى: [${newName}]* 🛡️`,
+          parse_mode: "Markdown",
+        });
+      } else {
+        userStates.set(chatId, "awaiting_name");
+        await telegramRequest("sendMessage", {
+          chat_id: chatId,
+          text: `✍️ *أرسل اسمك أو لقبك الجديد الآن في رسالة:*`,
+          parse_mode: "Markdown",
+        });
+      }
+      return;
+    }
+
+    if (text.startsWith("/start")) {
+      // Check if user already set their name
+      const existingName = userNames.get(chatId);
+      if (!existingName) {
+        userStates.set(chatId, "awaiting_name");
+        const namePrompt = `⚔️ *مرحباً بك في مَنظُومَة [رِجَالٌ صَدَقُوا] يا ${fromName}!*
+
+«مِّنَ الْمُؤْمِنِينَ رِجَالٌ صَدَقُوا مَا عَاهَدُوا اللَّهَ عَلَيْهِ»
+
+هذا البوت هو حصنك المنيع وسلاحك لتحطيم قيد الإباحية والعادة السرية واستعادة عزة الرجولة.
+
+🏆 *خطوتك الأولى:*
+ما هو اللقب أو الاسم الذي تحب أن تظهر به في **لوحة البطولة والشرف** ليتنافس به إخوانك؟
+(مثال: *صابر في سبيل الله، سيف الحق، المعتصم، أو اسمك الصريح*)
+
+✍️ *أرسل اسمك الآن في رسالة وسأسجله لك فوراً:*`;
+
+        await telegramRequest("sendMessage", {
+          chat_id: chatId,
+          text: namePrompt,
+          parse_mode: "Markdown",
+        });
+        return;
+      }
+
+      const welcome = `⚔️ *أهلاً بك مجدداً يا بطلنا [${existingName}]!*
+
+«مِّنَ الْمُؤْمِنِينَ رِجَالٌ صَدَقُوا مَا عَاهَدُوا اللَّهَ عَلَيْهِ»
 
 اضغط على الزر أدناه لدخول تطبيق درع العفة أو اختر من القائمة:`;
 

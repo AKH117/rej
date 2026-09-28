@@ -253,3 +253,36 @@ export async function recordDailyCheckin(
     return { success: false, message: "حدث خطأ أثناء التسجيل" };
   }
 }
+
+/**
+ * Update user display name / nickname
+ */
+export async function updateDisplayName(
+  telegramId: number,
+  displayName: string
+): Promise<UserProfile | null> {
+  try {
+    const cleanName = displayName.trim();
+    if (!cleanName) return null;
+
+    const { data, error } = await supabaseAdmin
+      .from("profiles")
+      .update({
+        display_name: cleanName,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("telegram_id", telegramId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("updateDisplayName error:", error);
+      return null;
+    }
+    return data;
+  } catch (err) {
+    console.error("updateDisplayName error:", err);
+    return null;
+  }
+}
+

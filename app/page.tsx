@@ -19,7 +19,8 @@ import RelapseModal from "@/components/RelapseModal";
 import Leaderboard from "@/components/Leaderboard";
 import DopamineRoadmap from "@/components/DopamineRoadmap";
 import DailyCheckin from "@/components/DailyCheckin";
-import { UserProfile, getOrCreateProfile, getLeaderboard, registerRelapse, recordDailyCheckin, supabaseAdmin } from "@/lib/supabase";
+import HeroOnboardingModal from "@/components/HeroOnboardingModal";
+import { UserProfile, getOrCreateProfile, getLeaderboard, registerRelapse, recordDailyCheckin, updateDisplayName, supabaseAdmin } from "@/lib/supabase";
 import { getRankByDays } from "@/lib/ranks";
 
 // Declare Telegram WebApp on window
@@ -52,6 +53,7 @@ export default function Home() {
   const [isSosOpen, setIsSosOpen] = useState(false);
   const [isRelapseOpen, setIsRelapseOpen] = useState(false);
   const [isEditNameOpen, setIsEditNameOpen] = useState(false);
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
   const [newName, setNewName] = useState("");
   const [loading, setLoading] = useState(true);
 
@@ -88,6 +90,12 @@ export default function Home() {
         if (profile) {
           setUserProfile(profile);
           setNewName(profile.display_name);
+
+          const hasSavedName = typeof window !== "undefined" && localStorage.getItem(`rejal_name_chosen_${profile.telegram_id}`);
+          const isGeneric = !profile.display_name || profile.display_name.startsWith("فارس #") || profile.display_name.startsWith("@") || profile.display_name.startsWith("admin_");
+          if (!hasSavedName && isGeneric) {
+            setIsOnboardingOpen(true);
+          }
         } else {
           // Local fallback demo state if DB tables not yet migrated
           setUserProfile({
@@ -107,6 +115,10 @@ export default function Home() {
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           });
+          const hasSavedName = typeof window !== "undefined" && localStorage.getItem("rejal_name_chosen_demo");
+          if (!hasSavedName) {
+            setIsOnboardingOpen(true);
+          }
         }
 
         // Fetch Leaderboard
@@ -246,6 +258,19 @@ export default function Home() {
     } catch (e) {
       console.error(e);
     }
+  };
+
+  // Handle Save Onboarding Nickname
+  const handleSaveOnboardingName = async (chosenName: string) => {
+    if (!userProfile) return;
+    setUserProfile((prev) => (prev ? { ...prev, display_name: chosenName } : null));
+    setNewName(chosenName);
+    setIsOnboardingOpen(false);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(`rejal_name_chosen_${userProfile.telegram_id}`, "true");
+      localStorage.setItem("rejal_name_chosen_demo", "true");
+    }
+    await updateDisplayName(userProfile.telegram_id, chosenName);
   };
 
   if (!mounted || loading) {
@@ -490,6 +515,13 @@ export default function Home() {
           </div>
         </div>
       )}
+
+      {/* Hero Onboarding Modal for First Time Name Selection */}
+      <HeroOnboardingModal
+        isOpen={isOnboardingOpen}
+        initialName={userProfile?.display_name || ""}
+        onSaveName={handleSaveOnboardingName}
+      />
     </div>
   );
 }
