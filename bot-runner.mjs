@@ -4,7 +4,8 @@
 import https from "https";
 
 const BOT_TOKEN = "8610539309:AAGr02LwIXFeQsTJ_jBnzmT5pMdoDzCrjv8";
-const APP_URL = "http://localhost:3000";
+// Telegram WebApp strictly requires HTTPS
+const APP_URL = "https://state-nor-clock-requirement.trycloudflare.com";
 
 let offset = 0;
 
@@ -19,7 +20,7 @@ function telegramRequest(method, data) {
       path: `/bot${BOT_TOKEN}/${method}`,
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
+        "Content-Type": "application/json; charset=utf-8",
         "Content-Length": Buffer.byteLength(postData),
       },
     };
@@ -29,14 +30,21 @@ function telegramRequest(method, data) {
       res.on("data", (chunk) => (body += chunk));
       res.on("end", () => {
         try {
-          resolve(JSON.parse(body));
+          const parsed = JSON.parse(body);
+          if (!parsed.ok) {
+            console.error(`❌ خطأ من تيليجرام في ${method}:`, parsed.description);
+          }
+          resolve(parsed);
         } catch (e) {
           resolve({ ok: false });
         }
       });
     });
 
-    req.on("error", (e) => reject(e));
+    req.on("error", (e) => {
+      console.error("❌ Network error:", e.message);
+      reject(e);
+    });
     req.write(postData);
     req.end();
   });
@@ -52,19 +60,13 @@ async function handleUpdate(update) {
     console.log(`📩 رسالة من ${fromName} (${chatId}): ${text}`);
 
     if (text.startsWith("/start")) {
-      const welcome = `
-⚔️ *أهلاً بك في مَنظُومَة [رِجَالٌ صَدَقُوا] يا ${fromName}!*
+      const welcome = `⚔️ *مرحباً بك في مَنظُومَة [رِجَالٌ صَدَقُوا] يا ${fromName}!*
 
 «مِّنَ الْمُؤْمِنِينَ رِجَالٌ صَدَقُوا مَا عَاهَدُوا اللَّهَ عَلَيْهِ»
 
-هذا البوت وسيلتك لتحطيم قيد الإباحية والعادة الخبيثة واستعادة نقاء القلب وقوة الرجولة.
+هذا البوت هو حصنك وسلاحك لتحطيم قيد الإباحية والعادة الخبيثة، واستعادة عزة الرجولة ونور الإيمان وصفاء العقل.
 
-🌟 *الأوامر المتاحة:*
-• /sos — زر الطوارئ والاستغاثة عند هجوم الشهوة
-• /streak — معرفة أيام صمودك ورتبتك الإيمانية
-• /leaderboard — مشاهدة لوحة البطولة وأوائل الصامدين
-• /checkin — توثيق ثباتك اليومي وكسب نقاط الشرف
-      `;
+اضغط على الزر أدناه لدخول تطبيق درع العفة أو اختر من القائمة:`;
 
       await telegramRequest("sendMessage", {
         chat_id: chatId,
@@ -74,7 +76,7 @@ async function handleUpdate(update) {
           inline_keyboard: [
             [
               {
-                text: "⚔️ فتح تطبيق رجال صدقوا (Mini App)",
+                text: "⚔️ فتح تطبيق درع العفة (Mini App)",
                 web_app: { url: APP_URL },
               },
             ],
@@ -90,8 +92,7 @@ async function handleUpdate(update) {
         },
       });
     } else if (text.startsWith("/sos")) {
-      const sos = `
-🚨 *بروتوكول الطوارئ والاستغاثة (نجدة الفارس)* 🚨
+      const sos = `🚨 *بروتوكول الطوارئ والاستغاثة (نجدة الفارس)* 🚨
 
 «أَلَمْ يَعْلَم بِأَنَّ اللَّهَ يَرَى»
 
@@ -100,8 +101,8 @@ async function handleUpdate(update) {
 3️⃣ *توضأ بالماء البارد واغسل وجهك ونحرك.*
 4️⃣ *صلّ ركعتين خاشعتين لله.*
 
-الشهوة فوران كيميائي مدته 90 ثانية فقط.. إذا حبست نفسك عنها انكسرت شوكتها وهُزم الشيطان!
-      `;
+الشهوة فوران كيميائي مدته 90 ثانية فقط.. إذا حبست نفسك عنها انكسرت شوكتها وهُزم الشيطان!`;
+      
       await telegramRequest("sendMessage", {
         chat_id: chatId,
         text: sos,
@@ -109,6 +110,7 @@ async function handleUpdate(update) {
         reply_markup: {
           inline_keyboard: [
             [{ text: "🛡️ نجوت بفضل الله وثبتت", callback_data: "sos_resolved" }],
+            [{ text: "⚔️ فتح تطبيق درع العفة", web_app: { url: APP_URL } }],
           ],
         },
       });
@@ -126,13 +128,13 @@ async function handleUpdate(update) {
     } else if (text.startsWith("/checkin")) {
       await telegramRequest("sendMessage", {
         chat_id: chatId,
-        text: `🛡️ *بارك الله فيك وثبتك! تم تسجيل ثباتك لليوم بنجاح يا بطل.*`,
+        text: `🛡️ *بارك الله فيك وثبتك! تم تسجيل ثباتك لليوم بنجاح وإضافة 15 نقطة شرف.*`,
         parse_mode: "Markdown",
       });
     } else if (text.startsWith("/leaderboard")) {
       await telegramRequest("sendMessage", {
         chat_id: chatId,
-        text: `🏆 *لوحة البطولة والشرف:*\n1. أبو بكر الصديق (قدوة) — 120 يوم\n2. سيف الله المسلول — 65 يوم\n3. المرابط في سبيل الله — 32 يوم\n\nافتح التطبيق المصغر لمشاهدة باقي الأبطال!`,
+        text: `🏆 *لوحة البطولة والشرف:*\n1. أبو بكر الصديق (قدوة) — 120 يوم\n2. سيف الله المسلول — 65 يوم\n3. المرابط في سبيل الله — 32 يوم\n\nافتح التطبيق المصغر لمشاهدة منصة التتويج الكاملة!`,
         parse_mode: "Markdown",
         reply_markup: {
           inline_keyboard: [
@@ -154,7 +156,7 @@ async function handleUpdate(update) {
     if (data === "trigger_sos") {
       await telegramRequest("sendMessage", {
         chat_id: chatId,
-        text: `🚨 *بروتوكول الطوارئ:* «أَلَمْ يَعْلَم بِأَنَّ اللَّهَ يَرَى».. ارْمِ الهاتف وتوضأ فوراً!`,
+        text: `🚨 *بروتوكول الطوارئ:* «أَلَمْ يَعْلَم بِأَنَّ اللَّهَ يَرَى»..\nارْمِ الهاتف فوراً وتوضأ بماء بارد وصلّ ركعتين!`,
         parse_mode: "Markdown",
       });
     } else if (data === "sos_resolved") {
@@ -168,6 +170,28 @@ async function handleUpdate(update) {
         chat_id: chatId,
         text: `🛡️ *تم توثيق ثباتك اليوم بفضل الله وإضافة 15 نقطة شرف!*`,
         parse_mode: "Markdown",
+      });
+    } else if (data === "view_leaderboard") {
+      await telegramRequest("sendMessage", {
+        chat_id: chatId,
+        text: `🏆 *لوحة البطولة والشرف:* افتح التطبيق المصغر لمشاهدة المتنافسين!`,
+        parse_mode: "Markdown",
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "🏆 فتح لوحة البطولة الكاملة", web_app: { url: APP_URL } }],
+          ],
+        },
+      });
+    } else if (data === "view_my_streak") {
+      await telegramRequest("sendMessage", {
+        chat_id: chatId,
+        text: `📊 *عدادك ورتبتك:* افتح درع العفة للاطلاع على الساعات والدقائق ونسبة التعافي!`,
+        parse_mode: "Markdown",
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "⚔️ فتح درع العفة", web_app: { url: APP_URL } }],
+          ],
+        },
       });
     }
   }

@@ -45,6 +45,7 @@ declare global {
 }
 
 export default function Home() {
+  const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<"dashboard" | "leaderboard" | "roadmap" | "about">("dashboard");
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [leaderboardProfiles, setLeaderboardProfiles] = useState<UserProfile[]>([]);
@@ -53,6 +54,10 @@ export default function Home() {
   const [isEditNameOpen, setIsEditNameOpen] = useState(false);
   const [newName, setNewName] = useState("");
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Initialize Telegram or fallback guest user
   useEffect(() => {
@@ -243,9 +248,12 @@ export default function Home() {
     }
   };
 
-  if (loading) {
+  if (!mounted || loading) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center gap-3">
+      <div
+        suppressHydrationWarning
+        className="flex-1 flex flex-col items-center justify-center gap-3 py-24"
+      >
         <div className="w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full animate-spin" />
         <span className="text-xs font-bold text-slate-300">
           «مِّنَ الْمُؤْمِنِينَ رِجَالٌ صَدَقُوا».. جارٍ التحضير

@@ -56,7 +56,7 @@ export default function StreakCounter({
   );
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4" suppressHydrationWarning>
       {/* Main Hero Card: Purity Shield */}
       <div className="relative overflow-hidden rounded-3xl gradient-card p-6 border border-emerald-900/40 glow-emerald">
         {/* Subtle background glow */}

@@ -21,14 +21,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ar" dir="rtl">
+    <html lang="ar" dir="rtl" suppressHydrationWarning>
       <head>
         <Script
           src="https://telegram.org/js/telegram-web-app.js"
           strategy="beforeInteractive"
         />
       </head>
-      <body className="min-h-screen bg-[#070a10] text-slate-100 antialiased selection:bg-amber-500 selection:text-black">
+      <body
+        suppressHydrationWarning
+        className="min-h-screen bg-[#070a10] text-slate-100 antialiased selection:bg-amber-500 selection:text-black"
+      >
         <main className="max-w-md mx-auto min-h-screen relative flex flex-col px-4 py-3 sm:max-w-lg md:max-w-xl">
           {children}
         </main>

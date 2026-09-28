@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { CheckCircle2, ShieldCheck, Flame, Quote, Sparkles } from "lucide-react";
 import confetti from "canvas-confetti";
 
@@ -35,9 +35,12 @@ export default function DailyCheckin({
   const [loading, setLoading] = useState(false);
   const [checked, setChecked] = useState(hasCheckedInToday);
   const [feedback, setFeedback] = useState("");
+  const [dayIndex, setDayIndex] = useState(0);
 
-  // Select wisdom based on day of month
-  const dayIndex = new Date().getDate() % DAILY_WISDOMS.length;
+  useEffect(() => {
+    setDayIndex(new Date().getDate() % DAILY_WISDOMS.length);
+  }, []);
+
   const wisdom = DAILY_WISDOMS[dayIndex];
 
   const handleCheckinClick = async () => {
