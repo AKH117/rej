@@ -58,26 +58,29 @@ export async function answerCallbackQuery(callbackQueryId: string, text?: string
 }
 
 /**
- * Build Keyboard with Mini App Button
+ * Build Keyboard without manual checkin - focusing on Mini App, Leaderboard, SOS, and Honest Relapse
  */
 export function getBotMainKeyboard(webAppUrl?: string) {
-  const defaultUrl = webAppUrl || process.env.NEXT_PUBLIC_APP_URL || "https://rejal-sadako.vercel.app";
+  const defaultUrl = webAppUrl || process.env.NEXT_PUBLIC_APP_URL || "https://state-nor-clock-requirement.trycloudflare.com";
   
   return {
     inline_keyboard: [
       [
         {
-          text: "⚔️ فتح تطبيق رجال صدقوا (درع العفة)",
+          text: "⚔️ فتح تطبيق درع العفة (Mini App)",
           web_app: { url: defaultUrl },
         },
       ],
       [
-        { text: "🛡️ تسجيل الثبات اليومي", callback_data: "checkin_today" },
         { text: "🏆 لوحة الأبطال", callback_data: "view_leaderboard" },
+        { text: "📊 عدادي ورتبتي", callback_data: "view_my_streak" },
       ],
       [
         { text: "🆘 زر الطوارئ والاستغاثة", callback_data: "trigger_sos" },
-        { text: "📊 عدادي ورتبتي", callback_data: "view_my_streak" },
+        { text: "💔 حدثت انتكاسة (إقرار الصدق)", callback_data: "trigger_relapse" },
+      ],
+      [
+        { text: "🛡️ تفقد الصمود الدوري (تأكيد الثبات)", callback_data: "periodic_checkup" },
       ],
     ],
   };

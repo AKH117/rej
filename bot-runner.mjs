@@ -53,6 +53,30 @@ function telegramRequest(method, data) {
 const userStates = new Map();
 const userNames = new Map();
 
+function getMainKeyboard() {
+  return {
+    inline_keyboard: [
+      [
+        {
+          text: "⚔️ فتح تطبيق درع العفة (Mini App)",
+          web_app: { url: APP_URL },
+        },
+      ],
+      [
+        { text: "🏆 لوحة الأبطال", callback_data: "view_leaderboard" },
+        { text: "📊 عدادي ورتبتي", callback_data: "view_my_streak" },
+      ],
+      [
+        { text: "🆘 زر الطوارئ والاستغاثة", callback_data: "trigger_sos" },
+        { text: "💔 حدثت انتكاسة (إقرار الصدق)", callback_data: "trigger_relapse" },
+      ],
+      [
+        { text: "🛡️ تفقد الصمود الدوري (تأكيد الثبات)", callback_data: "periodic_checkup" },
+      ],
+    ],
+  };
+}
+
 async function handleUpdate(update) {
   if (update.message) {
     const msg = update.message;
@@ -66,33 +90,29 @@ async function handleUpdate(update) {
     if (userStates.get(chatId) === "awaiting_name" && !text.startsWith("/")) {
       const chosenName = text.trim().slice(0, 35);
       userNames.set(chatId, chosenName);
-      userStates.delete(chatId);
+      userStates.set(chatId, "awaiting_oath");
 
-      const confirmed = `🏆 *الله أكبر! تم اعتماد لقبك: [${chosenName}] بنجاح في سجل الفرسان.* ⚔️
+      const oathPrompt = `⚔️ *أهلاً بك يا بطلنا «${chosenName}» في مَنظُومَة [رِجَالٌ صَدَقُوا]!*
 
 «مِّنَ الْمُؤْمِنِينَ رِجَالٌ صَدَقُوا مَا عَاهَدُوا اللَّهَ عَلَيْهِ»
 
-اضغط على الزر أدناه لدخول تطبيق درع العفة ومشاهدة اسمك في لوحة البطولة:`;
+يا ${chosenName}.. هذا صرح الأبطال الأطهار، ولا يدخل ميداننا إلا من صدق مع الله ومع نفسه؛ فالله يعلم خائنة الأعين وما تخفي الصدور ولا مكان هنا للخداع.
+
+📜 *اقرأ هذا القَسَم بقلبك ولسانك واضغط على الزر أدناه لإقراره ودخول الميدان:*
+
+«أُقْسِمُ بِاللهِ العَظِيمِ، الَّذِي يَعْلَمُ السِّرَّ وَأَخْفَى، أَنْ أَقُولَ وَأَكْتُبَ الحَقَّ وَالصِّدْقَ، وَأَلَّا أَكْذِبَ فِي أَيَّامِ صُمُودِي، وَأَنْ أُسَجِّلَ انْتِكَاسَتِي فَوْرَ حُدُوثِهَا ابْتِغَاءَ رِضَا اللهِ وَتَطْهِيراً لِنَفْسِي.. وَاللهُ عَلَى مَا أَقُولُ شَهِيدٌ»`;
 
       await telegramRequest("sendMessage", {
         chat_id: chatId,
-        text: confirmed,
+        text: oathPrompt,
         parse_mode: "Markdown",
         reply_markup: {
           inline_keyboard: [
             [
               {
-                text: "⚔️ فتح تطبيق درع العفة (Mini App)",
-                web_app: { url: APP_URL },
+                text: "⚔️ أَقْسَمْتُ بِاللهِ العَظِيمِ عَلَى الصِّدْقِ",
+                callback_data: "swear_oath",
               },
-            ],
-            [
-              { text: "🛡️ تسجيل الثبات اليومي", callback_data: "checkin_today" },
-              { text: "🏆 لوحة الأبطال", callback_data: "view_leaderboard" },
-            ],
-            [
-              { text: "🆘 زر الطوارئ والاستغاثة", callback_data: "trigger_sos" },
-              { text: "📊 عدادي ورتبتي", callback_data: "view_my_streak" },
             ],
           ],
         },
@@ -123,8 +143,30 @@ async function handleUpdate(update) {
       return;
     }
 
+    // Command /checkup
+    if (text.startsWith("/checkup")) {
+      const checkMsg = `🛡️ *المساءلة الدورية لكتيبة الصادقين:*
+
+يا أخي الصامد.. مرت أيام وأنت في جهاد النفس! ⚔️
+بالله العظيم الذي أقسمت به: **هل ما زلت صامداً ثابتاً على عهدك ولم تنتكس؟**`;
+
+      await telegramRequest("sendMessage", {
+        chat_id: chatId,
+        text: checkMsg,
+        parse_mode: "Markdown",
+        reply_markup: {
+          inline_keyboard: [
+            [
+              { text: "✓ صامد وثابت بفضل الله 🛡️", callback_data: "confirm_sober" },
+              { text: "للأسف حدثت انتكاسة 💔", callback_data: "trigger_relapse" },
+            ],
+          ],
+        },
+      });
+      return;
+    }
+
     if (text.startsWith("/start")) {
-      // Check if user already set their name
       const existingName = userNames.get(chatId);
       if (!existingName) {
         userStates.set(chatId, "awaiting_name");
@@ -158,24 +200,7 @@ async function handleUpdate(update) {
         chat_id: chatId,
         text: welcome,
         parse_mode: "Markdown",
-        reply_markup: {
-          inline_keyboard: [
-            [
-              {
-                text: "⚔️ فتح تطبيق درع العفة (Mini App)",
-                web_app: { url: APP_URL },
-              },
-            ],
-            [
-              { text: "🛡️ تسجيل الثبات اليومي", callback_data: "checkin_today" },
-              { text: "🏆 لوحة الأبطال", callback_data: "view_leaderboard" },
-            ],
-            [
-              { text: "🆘 زر الطوارئ والاستغاثة", callback_data: "trigger_sos" },
-              { text: "📊 عدادي ورتبتي", callback_data: "view_my_streak" },
-            ],
-          ],
-        },
+        reply_markup: getMainKeyboard(),
       });
     } else if (text.startsWith("/sos")) {
       const sos = `🚨 *بروتوكول الطوارئ والاستغاثة (نجدة الفارس)* 🚨
@@ -211,12 +236,6 @@ async function handleUpdate(update) {
           ],
         },
       });
-    } else if (text.startsWith("/checkin")) {
-      await telegramRequest("sendMessage", {
-        chat_id: chatId,
-        text: `🛡️ *بارك الله فيك وثبتك! تم تسجيل ثباتك لليوم بنجاح وإضافة 15 نقطة شرف.*`,
-        parse_mode: "Markdown",
-      });
     } else if (text.startsWith("/leaderboard")) {
       await telegramRequest("sendMessage", {
         chat_id: chatId,
@@ -234,12 +253,79 @@ async function handleUpdate(update) {
     const chatId = cb.message?.chat?.id;
     const data = cb.data;
 
+    // Acknowledge callback immediately
     await telegramRequest("answerCallbackQuery", {
       callback_query_id: cb.id,
       text: "تم الاستلام بنجاح!",
     });
 
-    if (data === "trigger_sos") {
+    if (data === "swear_oath") {
+      userStates.delete(chatId);
+      const heroName = userNames.get(chatId) || "يا بطل";
+
+      const confirmed = `🏆 *الله أكبر! تم اعتماد قَسَمك وتسجيل لقبك [${heroName}] في كتيبة الصادقين بنجاح.* ⚔️
+
+ميدان البطولة مفتوح الآن أمامك..
+اضغط على الزر أدناه لدخول تطبيق درع العفة والانطلاق في سباق الصادقين!`;
+
+      await telegramRequest("sendMessage", {
+        chat_id: chatId,
+        text: confirmed,
+        parse_mode: "Markdown",
+        reply_markup: getMainKeyboard(),
+      });
+    } else if (data === "trigger_relapse") {
+      const relapseMsg = `💔 *«كُلُّ بَنِي آدَمَ خَطَّاءٌ، وَخَيْرُ الخَطَّائِينَ التَّوَّابُونَ»*
+
+يا بطل.. صدقك بإقرار الكبوة هو أولى خطوات الرجولة الحقة وعزة المؤمن. 
+لا تيأس ولا تستسلم للشيطان في الوحل!
+
+1️⃣ *توضأ الآن بالماء البارد واغسل قلبك.*
+2️⃣ *صلّ ركعتي توبة خاشعتين لله.*
+3️⃣ *افتح التطبيق لتصفير العداد وتجديد العهد بعزيمة أصلب وأقوى!*`;
+
+      await telegramRequest("sendMessage", {
+        chat_id: chatId,
+        text: relapseMsg,
+        parse_mode: "Markdown",
+        reply_markup: {
+          inline_keyboard: [
+            [
+              {
+                text: "⚔️ فتح التطبيق وتجديد العهد",
+                web_app: { url: APP_URL },
+              },
+            ],
+          ],
+        },
+      });
+    } else if (data === "periodic_checkup") {
+      const checkMsg = `🛡️ *المساءلة الدورية لكتيبة الصادقين:*
+
+يا أخي الصامد.. مرت أيام وأنت في جهاد النفس! ⚔️
+بالله العظيم الذي أقسمت به: **هل ما زلت صامداً ثابتاً على عهدك ولم تنتكس؟**`;
+
+      await telegramRequest("sendMessage", {
+        chat_id: chatId,
+        text: checkMsg,
+        parse_mode: "Markdown",
+        reply_markup: {
+          inline_keyboard: [
+            [
+              { text: "✓ صامد وثابت بفضل الله 🛡️", callback_data: "confirm_sober" },
+              { text: "للأسف حدثت انتكاسة 💔", callback_data: "trigger_relapse" },
+            ],
+          ],
+        },
+      });
+    } else if (data === "confirm_sober") {
+      await telegramRequest("sendMessage", {
+        chat_id: chatId,
+        text: `🏆 *الله أكبر ولله الحمد!*` + "\n" +
+              `تم توثيق استمرار صمودك وصدقك بنجاح، ومركزك في لوحة البطولة مستمر ومؤكد بنشاطك 🛡️✨`,
+        parse_mode: "Markdown",
+      });
+    } else if (data === "trigger_sos") {
       await telegramRequest("sendMessage", {
         chat_id: chatId,
         text: `🚨 *بروتوكول الطوارئ:* «أَلَمْ يَعْلَم بِأَنَّ اللَّهَ يَرَى»..\nارْمِ الهاتف فوراً وتوضأ بماء بارد وصلّ ركعتين!`,
@@ -251,16 +337,10 @@ async function handleUpdate(update) {
         text: `🏆 *الله أكبر! ثبتك الله وقهرت الشيطان.. زادك الله عزة ونوراً!*`,
         parse_mode: "Markdown",
       });
-    } else if (data === "checkin_today") {
-      await telegramRequest("sendMessage", {
-        chat_id: chatId,
-        text: `🛡️ *تم توثيق ثباتك اليوم بفضل الله وإضافة 15 نقطة شرف!*`,
-        parse_mode: "Markdown",
-      });
     } else if (data === "view_leaderboard") {
       await telegramRequest("sendMessage", {
         chat_id: chatId,
-        text: `🏆 *لوحة البطولة والشرف:* افتح التطبيق المصغر لمشاهدة المتنافسين!`,
+        text: `🏆 *لوحة البطولة والشرف:* افتح التطبيق المصغر لمشاهدة المتنافسين والتأكد من صدارتك!`,
         parse_mode: "Markdown",
         reply_markup: {
           inline_keyboard: [

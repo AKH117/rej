@@ -17,7 +17,21 @@ export default function Leaderboard({
   const [tab, setTab] = useState<"current" | "longest">("current");
   const [search, setSearch] = useState("");
 
+  const isConfirmedRecently = (lastCheckin?: string | null) => {
+    if (!lastCheckin) return false;
+    const diffHours = (Date.now() - new Date(lastCheckin).getTime()) / (1000 * 60 * 60);
+    return diffHours <= 96; // 4 days window
+  };
+
   const sortedProfiles = [...profiles].sort((a, b) => {
+    const aConfirmed = isConfirmedRecently(a.last_checkin_at) ? 1 : 0;
+    const bConfirmed = isConfirmedRecently(b.last_checkin_at) ? 1 : 0;
+
+    // Prioritize actively confirmed profiles to prevent ghost accounts at top
+    if (aConfirmed !== bConfirmed) {
+      return bConfirmed - aConfirmed;
+    }
+
     if (tab === "current") {
       return (
         b.current_streak_days - a.current_streak_days ||
@@ -144,6 +158,12 @@ export default function Leaderboard({
         </div>
       )}
 
+      {/* Integrity & Anti-Ghost Banner */}
+      <div className="p-3 rounded-2xl bg-slate-900/60 border border-slate-800 text-[11px] text-slate-300 flex items-center gap-2">
+        <Shield className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+        <span><b>ميثاق النزاهة:</b> يتم تأكيد الصمود دورياً عبر البوت لضمان خلو الصدارة من الحسابات الخاملة أو المنقطعة.</span>
+      </div>
+
       {/* Search Bar */}
       <div className="relative">
         <Search className="w-4 h-4 text-slate-500 absolute right-3 top-3" />
@@ -203,6 +223,12 @@ export default function Leaderboard({
                   </div>
                   <div className="flex items-center gap-2 text-[10px] text-slate-400">
                     <span>{rank.badge} {rank.title}</span>
+                    <span>•</span>
+                    {isConfirmedRecently(profile.last_checkin_at) ? (
+                      <span className="text-emerald-400 font-bold">✓ مؤكد الصمود</span>
+                    ) : (
+                      <span className="text-amber-400/90 font-medium">⚠️ بانتظار التأكيد</span>
+                    )}
                     <span>•</span>
                     <span className="text-amber-400/80">{profile.total_points} نقطة</span>
                   </div>

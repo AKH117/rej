@@ -18,9 +18,8 @@ import SosModal from "@/components/SosModal";
 import RelapseModal from "@/components/RelapseModal";
 import Leaderboard from "@/components/Leaderboard";
 import DopamineRoadmap from "@/components/DopamineRoadmap";
-import DailyCheckin from "@/components/DailyCheckin";
 import HeroOnboardingModal from "@/components/HeroOnboardingModal";
-import { UserProfile, getOrCreateProfile, getLeaderboard, registerRelapse, recordDailyCheckin, updateDisplayName, supabaseAdmin } from "@/lib/supabase";
+import { UserProfile, getOrCreateProfile, getLeaderboard, registerRelapse, updateDisplayName, supabaseAdmin } from "@/lib/supabase";
 import { getRankByDays } from "@/lib/ranks";
 
 // Declare Telegram WebApp on window
@@ -225,24 +224,6 @@ export default function Home() {
     }
   };
 
-  // Handle Daily Checkin
-  const handleDailyCheckin = async () => {
-    if (!userProfile) return { success: false, message: "غير مسجل" };
-    const res = await recordDailyCheckin(userProfile.telegram_id, "sober");
-    if (res.success && !res.alreadyDone) {
-      setUserProfile((prev) =>
-        prev
-          ? {
-              ...prev,
-              total_points: (prev.total_points || 0) + 15,
-              last_checkin_at: new Date().toISOString(),
-            }
-          : null
-      );
-    }
-    return res;
-  };
-
   // Handle Update Nickname
   const handleUpdateName = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -339,16 +320,27 @@ export default function Home() {
               onOpenSosModal={() => setIsSosOpen(true)}
             />
 
-            {/* Daily Check-in */}
-            <DailyCheckin
-              onCheckin={handleDailyCheckin}
-              hasCheckedInToday={
-                userProfile?.last_checkin_at
-                  ? new Date(userProfile.last_checkin_at).toDateString() ===
-                    new Date().toDateString()
-                  : false
-              }
-            />
+            {/* The Covenant of Truth & Bot Automatic Checkup Card */}
+            <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900 to-amber-950/30 border border-amber-500/30 flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-xs text-amber-400 font-bold">
+                  <Shield className="w-4 h-4 text-amber-400" />
+                  <span>ميثاق الصدق والمساءلة الدورية</span>
+                </div>
+                <span className="text-[10px] bg-amber-500/20 text-amber-300 font-semibold px-2 py-0.5 rounded-full border border-amber-500/30">
+                  قَسَم الفرسان
+                </span>
+              </div>
+              <p className="text-xs text-slate-300 leading-relaxed font-serif">
+                «أُقْسِمُ بِاللهِ العَظِيمِ أَنْ أَقُولَ وَأَكْتُبَ الحَقَّ وَالصِّدْقَ، وَأَلَّا أَكْذِبَ فِي أَيَّامِ صُمُودِي، وَأَنْ أُسَجِّلَ انْتِكَاسَتِي فَوْرَ حُدُوثِهَا».
+              </p>
+              <div className="pt-2 border-t border-slate-800 text-[11px] text-slate-400 leading-normal flex items-start gap-1.5">
+                <span className="text-emerald-400 font-bold">⚡ تنبيه:</span>
+                <span>
+                  يقوم بوت التليجرام بإرسال رسائل دورية للاطمئنان عليك. إذا حدثت انتكاسة لا قدر الله، الصدق شيمة الرجال؛ اضغط فوراً على زر <b>(حدثت انتكاسة)</b> بالأعلى لتجديد العهد ومسح الذنب.
+                </span>
+              </div>
+            </div>
 
             {/* Quick Link to Bot & Channel */}
             <a

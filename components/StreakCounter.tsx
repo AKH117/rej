@@ -152,10 +152,12 @@ export default function StreakCounter({
         {/* Relapse / Reset Pledge */}
         <button
           onClick={onOpenRelapseModal}
-          className="col-span-2 bg-slate-900/80 hover:bg-slate-850 border border-slate-850 hover:border-slate-700 text-slate-400 hover:text-slate-300 text-xs py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 transition-all"
+          className="col-span-2 bg-gradient-to-r from-slate-900 to-rose-950/40 hover:from-slate-850 hover:to-rose-900/50 border border-rose-900/50 hover:border-rose-700/70 text-slate-200 hover:text-white text-xs py-3.5 px-4 rounded-2xl flex items-center justify-center gap-2.5 transition-all shadow-md active:scale-[0.99]"
         >
-          <Flame className="w-3.5 h-3.5 text-rose-500/70" />
-          <span>حدثت انتكاسة؟ (كبوة فارس ولا استسلام - بروتوكول النهوض)</span>
+          <Flame className="w-4 h-4 text-rose-500 animate-pulse" />
+          <span className="font-bold">
+            حدثت انتكاسة؟ (كبوة فارس ولا استسلام - إقرار الصدق والنهوض فوراً)
+          </span>
         </button>
       </div>
     </div>
