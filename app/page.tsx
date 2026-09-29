@@ -12,6 +12,8 @@ import {
   CheckCircle2,
   Sparkles,
   Edit3,
+  X,
+  Swords,
 } from "lucide-react";
 import StreakCounter from "@/components/StreakCounter";
 import SosModal from "@/components/SosModal";
@@ -19,6 +21,7 @@ import RelapseModal from "@/components/RelapseModal";
 import Leaderboard from "@/components/Leaderboard";
 import DopamineRoadmap from "@/components/DopamineRoadmap";
 import HeroOnboardingModal from "@/components/HeroOnboardingModal";
+import TournamentsAndBrotherhood from "@/components/TournamentsAndBrotherhood";
 import { UserProfile, getOrCreateProfile, getLeaderboard, registerRelapse, updateDisplayName, supabaseAdmin } from "@/lib/supabase";
 import { getRankByDays } from "@/lib/ranks";
 
@@ -30,6 +33,16 @@ declare global {
         ready: () => void;
         expand: () => void;
         close: () => void;
+        disableVerticalSwipes?: () => void;
+        enableVerticalSwipes?: () => void;
+        isVerticalSwipesEnabled?: boolean;
+        enableClosingConfirmation?: () => void;
+        disableClosingConfirmation?: () => void;
+        isClosingConfirmationEnabled?: boolean;
+        setHeaderColor?: (color: string) => void;
+        setBackgroundColor?: (color: string) => void;
+        requestFullscreen?: () => void;
+        isVersionAtLeast?: (version: string) => boolean;
         initDataUnsafe?: {
           user?: {
             id: number;
@@ -46,7 +59,7 @@ declare global {
 
 export default function Home() {
   const [mounted, setMounted] = useState(false);
-  const [activeTab, setActiveTab] = useState<"dashboard" | "leaderboard" | "roadmap" | "about">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "tournaments" | "leaderboard" | "roadmap" | "about">("dashboard");
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [leaderboardProfiles, setLeaderboardProfiles] = useState<UserProfile[]>([]);
   const [isSosOpen, setIsSosOpen] = useState(false);
@@ -59,6 +72,92 @@ export default function Home() {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Telegram Mini App Configuration & Swipe-to-close Prevention
+  useEffect(() => {
+    const configureTelegram = () => {
+      if (typeof window !== "undefined" && window.Telegram?.WebApp) {
+        const tg = window.Telegram.WebApp;
+        try {
+          tg.ready();
+          tg.expand();
+
+          // Disable vertical swipes to prevent pull-down-to-close / swipe-to-minimize
+          if (typeof tg.disableVerticalSwipes === "function") {
+            tg.disableVerticalSwipes();
+          }
+
+          // Enable closing confirmation to prevent accidental exit
+          if (typeof tg.enableClosingConfirmation === "function") {
+            tg.enableClosingConfirmation();
+          }
+
+          // Match Telegram app theme colors with brand background
+          if (typeof tg.setHeaderColor === "function") {
+            tg.setHeaderColor("#070a10");
+          }
+          if (typeof tg.setBackgroundColor === "function") {
+            tg.setBackgroundColor("#070a10");
+          }
+        } catch (e) {
+          console.warn("Telegram WebApp initialization warning:", e);
+        }
+      }
+    };
+
+    configureTelegram();
+    const timer = setTimeout(configureTelegram, 300);
+
+    // Prevent iOS rubber-band overscroll pull-down that triggers Telegram sheet dismiss
+    let touchStartY = 0;
+    const handleTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 1) {
+        touchStartY = e.touches[0].clientY;
+      }
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return;
+      const currentY = e.touches[0].clientY;
+      const isSwipingDown = currentY > touchStartY;
+
+      // When pulling down at the top of the page
+      if (isSwipingDown && window.scrollY <= 0) {
+        let target = e.target as HTMLElement | null;
+        let isInsideScrolledElement = false;
+        while (target && target !== document.body && target !== document.documentElement) {
+          if (target.scrollTop > 0) {
+            isInsideScrolledElement = true;
+            break;
+          }
+          target = target.parentElement;
+        }
+
+        // Only prevent default if we are at the very top of all scrollable parents
+        if (!isInsideScrolledElement && e.cancelable) {
+          e.preventDefault();
+        }
+      }
+    };
+
+    window.addEventListener("touchstart", handleTouchStart, { passive: true });
+    window.addEventListener("touchmove", handleTouchMove, { passive: false });
+
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("touchstart", handleTouchStart);
+      window.removeEventListener("touchmove", handleTouchMove);
+    };
+  }, []);
+
+  // Dedicated Close Mini App handler
+  const handleCloseApp = () => {
+    if (typeof window !== "undefined" && window.Telegram?.WebApp) {
+      window.Telegram.WebApp.close();
+    } else if (typeof window !== "undefined") {
+      window.close();
+    }
+  };
 
   // Initialize Telegram or fallback guest user
   useEffect(() => {
@@ -74,6 +173,13 @@ export default function Home() {
           const tg = window.Telegram.WebApp;
           tg.ready();
           tg.expand();
+
+          if (typeof tg.disableVerticalSwipes === "function") {
+            tg.disableVerticalSwipes();
+          }
+          if (typeof tg.enableClosingConfirmation === "function") {
+            tg.enableClosingConfirmation();
+          }
 
           if (tg.initDataUnsafe?.user) {
             telegramUser = {
@@ -291,20 +397,34 @@ export default function Home() {
           </div>
         </div>
 
-        {/* User Nickname & Rank */}
-        <div
-          onClick={() => setIsEditNameOpen(true)}
-          className="flex items-center gap-2 bg-slate-900/90 border border-slate-800 hover:border-slate-700 px-3 py-1.5 rounded-2xl cursor-pointer transition-all active:scale-95"
-        >
-          <div className="text-right">
-            <span className="block text-xs font-bold text-slate-200 truncate max-w-[90px]">
-              {userProfile?.display_name}
-            </span>
-            <span className="text-[10px] text-emerald-400 font-medium">
-              {currentRank.badge} {currentRank.title}
-            </span>
+        {/* User Actions & Close Button */}
+        <div className="flex items-center gap-2">
+          {/* User Nickname & Rank */}
+          <div
+            onClick={() => setIsEditNameOpen(true)}
+            className="flex items-center gap-2 bg-slate-900/90 border border-slate-800 hover:border-slate-700 px-2.5 py-1.5 rounded-2xl cursor-pointer transition-all active:scale-95"
+            title="تعديل الاسم واللقب"
+          >
+            <div className="text-right">
+              <span className="block text-xs font-bold text-slate-200 truncate max-w-[80px]">
+                {userProfile?.display_name}
+              </span>
+              <span className="text-[10px] text-emerald-400 font-medium">
+                {currentRank.badge} {currentRank.title}
+              </span>
+            </div>
+            <Edit3 className="w-3.5 h-3.5 text-slate-500 hover:text-slate-300" />
           </div>
-          <Edit3 className="w-3.5 h-3.5 text-slate-500 hover:text-slate-300" />
+
+          {/* Explicit Close Button for Telegram Mini App */}
+          <button
+            onClick={handleCloseApp}
+            className="w-8 h-8 rounded-xl bg-slate-900/90 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 border border-slate-800 hover:border-rose-500/30 flex items-center justify-center transition-all active:scale-95 shadow-sm"
+            title="إغلاق التطبيق"
+            aria-label="إغلاق التطبيق"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
       </header>
 
@@ -358,6 +478,14 @@ export default function Home() {
           </div>
         )}
 
+        {activeTab === "tournaments" && (
+          <TournamentsAndBrotherhood
+            currentStreakDays={userProfile?.current_streak_days || 0}
+            totalPoints={userProfile?.total_points || 100}
+            displayName={userProfile?.display_name || "فارس العفة"}
+          />
+        )}
+
         {activeTab === "leaderboard" && (
           <Leaderboard
             profiles={leaderboardProfiles}
@@ -405,10 +533,10 @@ export default function Home() {
       </div>
 
       {/* Floating Bottom Navigation Bar */}
-      <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto sm:max-w-lg md:max-w-xl bg-slate-950/95 backdrop-blur-lg border-t border-slate-800/90 py-2 px-3 flex justify-around items-center z-40">
+      <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto sm:max-w-lg md:max-w-xl bg-slate-950/95 backdrop-blur-lg border-t border-slate-800/90 py-2 px-2 flex justify-around items-center z-40">
         <button
           onClick={() => setActiveTab("dashboard")}
-          className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-all ${
+          className={`flex flex-col items-center gap-1 py-1 px-2 rounded-xl transition-all ${
             activeTab === "dashboard"
               ? "text-emerald-400 font-bold"
               : "text-slate-500 hover:text-slate-300"
@@ -419,39 +547,51 @@ export default function Home() {
         </button>
 
         <button
+          onClick={() => setActiveTab("tournaments")}
+          className={`flex flex-col items-center gap-1 py-1 px-2 rounded-xl transition-all ${
+            activeTab === "tournaments"
+              ? "text-amber-400 font-bold"
+              : "text-slate-500 hover:text-slate-300"
+          }`}
+        >
+          <Swords className="w-5 h-5" />
+          <span className="text-[10px]">المؤاخاة والسباق</span>
+        </button>
+
+        <button
           onClick={() => setActiveTab("leaderboard")}
-          className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-all ${
+          className={`flex flex-col items-center gap-1 py-1 px-2 rounded-xl transition-all ${
             activeTab === "leaderboard"
               ? "text-amber-400 font-bold"
               : "text-slate-500 hover:text-slate-300"
           }`}
         >
           <Trophy className="w-5 h-5" />
-          <span className="text-[10px]">لوحة البطولة</span>
+          <span className="text-[10px]">الأبطال</span>
         </button>
 
         <button
           onClick={() => setActiveTab("roadmap")}
-          className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-all ${
+          className={`flex flex-col items-center gap-1 py-1 px-2 rounded-xl transition-all ${
             activeTab === "roadmap"
               ? "text-purple-400 font-bold"
               : "text-slate-500 hover:text-slate-300"
           }`}
         >
           <Brain className="w-5 h-5" />
-          <span className="text-[10px]">تعافي الدماغ</span>
+          <span className="text-[10px]">المسار</span>
         </button>
 
         <button
           onClick={() => setActiveTab("about")}
-          className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-all ${
+          className={`flex flex-col items-center gap-1 py-1 px-2 rounded-xl transition-all ${
             activeTab === "about"
               ? "text-cyan-400 font-bold"
               : "text-slate-500 hover:text-slate-300"
           }`}
         >
           <Info className="w-5 h-5" />
-          <span className="text-[10px]">المنظومة</span>
+          <span className="text-[10px]">الرؤية</span>
         </button>
       </nav>
 
