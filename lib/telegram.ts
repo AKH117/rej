@@ -1,4 +1,4 @@
-const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "8610539309:AAGr02LwIXFeQsTJ_jBnzmT5pMdoDzCrjv8";
+const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
 const TELEGRAM_API = `https://api.telegram.org/bot${BOT_TOKEN}`;
 
 export interface TelegramUser {

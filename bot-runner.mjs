@@ -5,9 +5,31 @@ import https from "https";
 import fs from "fs";
 import path from "path";
 
-const BOT_TOKEN = "8610539309:AAGr02LwIXFeQsTJ_jBnzmT5pMdoDzCrjv8";
+// Dynamically load .env.local if not already in process.env
+try {
+  const envPath = path.join(process.cwd(), ".env.local");
+  if (fs.existsSync(envPath)) {
+    const lines = fs.readFileSync(envPath, "utf-8").split("\n");
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+      const idx = trimmed.indexOf("=");
+      if (idx !== -1) {
+        const key = trimmed.slice(0, idx).trim();
+        const val = trimmed.slice(idx + 1).trim();
+        if (!process.env[key]) {
+          process.env[key] = val;
+        }
+      }
+    }
+  }
+} catch (e) {
+  // ignore
+}
+
+const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
 // Telegram WebApp strictly requires HTTPS
-const APP_URL = "https://state-nor-clock-requirement.trycloudflare.com";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://state-nor-clock-requirement.trycloudflare.com";
 
 const KNOWN_USERS_FILE = path.join(process.cwd(), "scripts", "known_chats.json");
 
