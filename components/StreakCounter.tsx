@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Shield, Flame, Award, AlertTriangle, Sparkles } from "lucide-react";
+import { Shield, Flame, Award, AlertTriangle, Sparkles, Calendar, Clock } from "lucide-react";
 import { getRankByDays, RANKS } from "@/lib/ranks";
 
 interface StreakCounterProps {
@@ -44,6 +44,25 @@ export default function StreakCounter({
     const interval = setInterval(calculateTime, 1000);
     return () => clearInterval(interval);
   }, [startDate]);
+
+  // Format exact date & time in Arabic
+  const formattedStartDate = (() => {
+    try {
+      const d = new Date(startDate);
+      if (isNaN(d.getTime())) return "غير محدد";
+      return new Intl.DateTimeFormat("ar-EG", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+        hour: "numeric",
+        minute: "numeric",
+        hour12: true,
+      }).format(d);
+    } catch {
+      return startDate;
+    }
+  })();
 
   const currentRank = getRankByDays(timeLeft.days);
   const nextRank = RANKS.find((r) => r.minDays > timeLeft.days) || currentRank;
@@ -110,6 +129,17 @@ export default function StreakCounter({
               </span>
               <span className="text-[10px] text-slate-400 font-medium">ثانية</span>
             </div>
+          </div>
+
+          {/* Exact Date & Time of Last Relapse / Start of Purity Streak */}
+          <div className="mt-4 w-full max-w-xs bg-slate-950/80 border border-slate-800/90 py-2 px-3 rounded-2xl flex items-center justify-between text-[11px] shadow-inner">
+            <div className="flex items-center gap-1.5 text-slate-400">
+              <Calendar className="w-3.5 h-3.5 text-amber-400" />
+              <span>آخر زلّة / بداية العهد:</span>
+            </div>
+            <span className="font-bold text-amber-300 font-mono text-[10px]">
+              {formattedStartDate}
+            </span>
           </div>
         </div>
 

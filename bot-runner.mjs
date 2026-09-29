@@ -2,10 +2,38 @@
 // Run via: node bot-runner.mjs
 
 import https from "https";
+import fs from "fs";
+import path from "path";
 
 const BOT_TOKEN = "8610539309:AAGr02LwIXFeQsTJ_jBnzmT5pMdoDzCrjv8";
 // Telegram WebApp strictly requires HTTPS
 const APP_URL = "https://state-nor-clock-requirement.trycloudflare.com";
+
+const KNOWN_USERS_FILE = path.join(process.cwd(), "scripts", "known_chats.json");
+
+function loadKnownUsers() {
+  try {
+    if (fs.existsSync(KNOWN_USERS_FILE)) {
+      const data = fs.readFileSync(KNOWN_USERS_FILE, "utf-8");
+      return new Set(JSON.parse(data));
+    }
+  } catch (e) {
+    console.error("Error loading known users:", e.message);
+  }
+  return new Set();
+}
+
+function saveKnownUsers(set) {
+  try {
+    const dir = path.dirname(KNOWN_USERS_FILE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(KNOWN_USERS_FILE, JSON.stringify([...set]), "utf-8");
+  } catch (e) {
+    console.error("Error saving known users:", e.message);
+  }
+}
+
+const knownChatIds = loadKnownUsers();
 
 let offset = 0;
 
@@ -53,6 +81,58 @@ function telegramRequest(method, data) {
 const userStates = new Map();
 const userNames = new Map();
 
+// Evening Check-in (10:30 PM) and Dawn Pulse (6:00 AM) Sender
+async function sendEveningCheckin(chatId) {
+  const checkMsg = `🛡️ *المساءلة الليلية لحراسة العفة (10:30 م):*
+
+أخي الفارس.. أوشك هذا اليوم أن يُطوى، وأنت بحفظ الله في رباط وجهاد! ⚔️
+
+بالله العظيم الذي أقسمت به: **هل ما زلت صامداً ثابتاً اليوم؟**
+
+💡 *تذكير السرير:* ضع شاحن هاتفك خارج غرفة النوم الآن ونم على وضوء وطهارة لئلا تُؤتى من مأمنك!`;
+
+  return await telegramRequest("sendMessage", {
+    chat_id: chatId,
+    text: checkMsg,
+    parse_mode: "Markdown",
+    reply_markup: {
+      inline_keyboard: [
+        [
+          { text: "🛡️ صامد وثابت بفضل الله (+10 نقاط) ✨", callback_data: "confirm_sober" },
+        ],
+        [
+          { text: "💔 حدثت كبوة (إقرار الصدق)", callback_data: "trigger_relapse" },
+        ],
+        [
+          { text: "⚔️ فتح تطبيق درع العفة", web_app: { url: APP_URL } },
+        ],
+      ],
+    },
+  });
+}
+
+async function sendMorningPulse(chatId) {
+  const morningMsg = `🌅 *بُشرى الفجر لكتيبة الصادقين:*
+
+«مِّنَ الْمُؤْمِنِينَ رِجَالٌ صَدَقُوا مَا عَاهَدُوا اللَّهَ عَلَيْهِ»
+
+أشرق صباح جديد وأنت طاهر القلب، عفيف النفس، رافع الرأس!
+ليلة جديدة في طاعة الله زادتك عزة ورجولة.. استعن بالله في صلواتك وأذكارك وانطلق في يومك بقوة ⚔️✨`;
+
+  return await telegramRequest("sendMessage", {
+    chat_id: chatId,
+    text: morningMsg,
+    parse_mode: "Markdown",
+    reply_markup: {
+      inline_keyboard: [
+        [
+          { text: "⚔️ فتح درع العفة", web_app: { url: APP_URL } },
+        ],
+      ],
+    },
+  });
+}
+
 function getMainKeyboard() {
   return {
     inline_keyboard: [
@@ -84,7 +164,26 @@ async function handleUpdate(update) {
     const text = (msg.text || "").trim();
     const fromName = msg.from?.first_name || "يا بطل";
 
+    // Track user for automated check-ins
+    if (chatId && !knownChatIds.has(chatId)) {
+      knownChatIds.add(chatId);
+      saveKnownUsers(knownChatIds);
+      console.log(`👤 مستخدم جديد مسجل للتنبيهات الآلية (${chatId})`);
+    }
+
     console.log(`📩 رسالة من ${fromName} (${chatId}): ${text}`);
+
+    // Command to test evening check-in immediately
+    if (text.startsWith("/test_checkin")) {
+      await sendEveningCheckin(chatId);
+      return;
+    }
+
+    // Command to test morning victory pulse immediately
+    if (text.startsWith("/test_morning")) {
+      await sendMorningPulse(chatId);
+      return;
+    }
 
     // If awaiting name input
     if (userStates.get(chatId) === "awaiting_name" && !text.startsWith("/")) {
@@ -321,9 +420,16 @@ async function handleUpdate(update) {
     } else if (data === "confirm_sober") {
       await telegramRequest("sendMessage", {
         chat_id: chatId,
-        text: `🏆 *الله أكبر ولله الحمد!*` + "\n" +
-              `تم توثيق استمرار صمودك وصدقك بنجاح، ومركزك في لوحة البطولة مستمر ومؤكد بنشاطك 🛡️✨`,
+        text: `🏆 *الله أكبر ولله الحمد!*` + "\n\n" +
+              `تم توثيق استمرار صمودك وثباتك لليوم بنجاح 🛡️✨\n` +
+              `✨ *أُضيفت (+10 نقاط شرف)* إلى رصيدك في لوحة البطولة.\n\n` +
+              `«وَالَّذِينَ جَاهَدُوا فِينَا لَنَهْدِيَنَّهُمْ سُبُلَنَا».. استمر يا بطل، فالجنة سلعة الله الغالية!`,
         parse_mode: "Markdown",
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "⚔️ فتح درع العفة ولوحة الشرف", web_app: { url: APP_URL } }],
+          ],
+        },
       });
     } else if (data === "trigger_sos") {
       await telegramRequest("sendMessage", {
@@ -362,6 +468,42 @@ async function handleUpdate(update) {
     }
   }
 }
+
+// Scheduled Alerts Ticker (10:30 PM & 6:00 AM)
+let lastEveningCheckinDate = "";
+let lastMorningPulseDate = "";
+
+function checkScheduledAlerts() {
+  const now = new Date();
+  const hours = now.getHours();
+  const minutes = now.getMinutes();
+  const todayStr = now.toISOString().slice(0, 10);
+
+  // 10:30 PM (22:30) Evening Checkin
+  if (hours === 22 && minutes === 30 && lastEveningCheckinDate !== todayStr) {
+    lastEveningCheckinDate = todayStr;
+    console.log(`⏰ [10:30 PM] إرسال المساءلة الليلية الآلية لجميع الفرسان المسجلين (${knownChatIds.size} مستخدم)...`);
+    for (const id of knownChatIds) {
+      sendEveningCheckin(id).catch((err) =>
+        console.error(`خطأ في إرسال المساءلة إلى ${id}:`, err.message)
+      );
+    }
+  }
+
+  // 06:00 AM (06:00) Morning Pulse
+  if (hours === 6 && minutes === 0 && lastMorningPulseDate !== todayStr) {
+    lastMorningPulseDate = todayStr;
+    console.log(`⏰ [06:00 AM] إرسال نبضة الصباح الآلية لجميع الفرسان المسجلين (${knownChatIds.size} مستخدم)...`);
+    for (const id of knownChatIds) {
+      sendMorningPulse(id).catch((err) =>
+        console.error(`خطأ في إرسال نبضة الصباح إلى ${id}:`, err.message)
+      );
+    }
+  }
+}
+
+// Run scheduler check every 30 seconds
+setInterval(checkScheduledAlerts, 30000);
 
 async function poll() {
   try {
